@@ -4,7 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-serde = { version = "1.0.196", features = ["derive"] }
-serde_json = { version = "1.0.113" }
 tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "knapsack/${ALGORITHM}" }
 tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "knapsack/${ALGORITHM}" }
