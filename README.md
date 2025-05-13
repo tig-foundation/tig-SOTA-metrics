@@ -4,6 +4,16 @@ A repository of tools to evaluate The Innovation Game (TIG) algorithms against s
 
 ## Available Evaluators
 
+* 3-SAT Boolean Satisfiability (`satisfiability_evaluator`)
+  * [Evaluator Documentation](./satisfiability_evaluator/README.md)
+  * [Challenge Description](https://tig.foundation/challenges/satisfiability)
+  * [Challenge Code](https://github.com/tig-foundation/tig-monorepo/blob/main/tig-challenges/src/satisfiability.rs)  
+
+* Vehicle Routing With Timing Windows Problem (`vehicle_routing_evaluator`)
+  * [Evaluator Documentation](./vehicle_routing_evaluator/README.md)
+  * [Challenge Description](https://tig.foundation/challenges/vehicle-routing)
+  * [Challenge Code](https://github.com/tig-foundation/tig-monorepo/blob/main/tig-challenges/src/vehicle_routing.rs)
+
 * Quadratic Knapsack Problem (`knapsack_evaluator`)
   * [Evaluator Documentation](./knapsack_evaluator/README.md)
   * [Challenge Description](https://tig.foundation/challenges/knapsack)
@@ -13,6 +23,5 @@ A repository of tools to evaluate The Innovation Game (TIG) algorithms against s
 
 We are actively developing additional evaluators for all of TIG's challenges:
 
-- **Satisfiability (SAT)**
-- **Vehicle Routing Problem with Timing Windows (VRPTW)**
 - **Vector Search**
+- **Hypergraph Partitioning**
