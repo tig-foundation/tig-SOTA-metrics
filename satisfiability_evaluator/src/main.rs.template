@@ -1,0 +1,96 @@
+use std::{fs, path::PathBuf, time::Instant};
+use tig_algorithms::satisfiability::*;
+use tig_challenges::{satisfiability::*, ChallengeTrait};
+
+/// Find all `.cnf` files in the given directory.
+fn find_cnf_files(dir_path: &str) -> Vec<PathBuf> {
+    let mut cnf_files = Vec::new();
+    for entry in fs::read_dir(dir_path).unwrap() {
+        let path = entry.unwrap().path();
+        if !path.is_dir() {
+            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
+                if ext.eq_ignore_ascii_case("cnf") {
+                    cnf_files.push(path);
+                }
+            }
+        }
+    }
+    cnf_files
+}
+
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Usage: {} <directory_path>", args[0]);
+        std::process::exit(1);
+    }
+    let dir_path = &args[1];
+
+    for file_path in find_cnf_files(dir_path) {
+        let file_name = file_path.file_name().unwrap().to_string_lossy();
+        let txt = fs::read_to_string(&file_path).unwrap();
+        let mut lines = txt.lines();
+        let mut num_variables = 0;
+        let mut num_clauses = 0;
+        let mut clauses = Vec::new();
+
+        // Skip comments and find the problem line
+        while let Some(line) = lines.next() {
+            let trimmed = line.trim();
+            if trimmed.starts_with('c') {
+                continue;
+            } else if trimmed.starts_with("p cnf") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                num_variables = parts[2].parse().unwrap();
+                num_clauses = parts[3].parse().unwrap();
+                break;
+            }
+        }
+
+        for line in lines {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let parts: Vec<&str> = trimmed.split_whitespace().collect();
+            let clause: Vec<i32> = parts[..parts.len() - 1]
+                .iter()
+                .map(|s| s.parse::<i32>().unwrap())
+                .collect();
+
+            clauses.push(clause);
+        }
+
+        let challenge = Challenge {
+            seed: [0u8; 32],
+            difficulty: Difficulty {
+                num_variables,
+                clauses_to_variables_percent: (num_variables * 100 / num_clauses) as u32,
+            },
+            clauses,
+        };
+
+        let start_time = Instant::now();
+        if let Ok(Some(solution)) = ${ALGORITHM}::solve_challenge(&challenge) {
+            let elapsed_ms = start_time.elapsed().as_millis();
+
+            match challenge.verify_solution(&solution) {
+                Ok(_) => {
+                    println!(
+                        "instance: {:?}, result: sat, time: {:4} ms",
+                        file_name, elapsed_ms
+                    );
+                }
+                Err(err) => {
+                    // print the error message (wrong var-count or clause index)
+                    println!(
+                        "instance: {:?}, result: invalid solution — {}",
+                        file_name, err
+                    );
+                }
+            }
+        } else {
+            println!("instance: {:?}, result: no solution", file_name);
+        }
+    }
+}
