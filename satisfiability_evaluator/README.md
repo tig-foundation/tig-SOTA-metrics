@@ -39,7 +39,7 @@ Use the provided script to evaluate your SAT algorithm against a benchmark set:
 bash run.sh TEST_INSTANCES_FOLDER ALGORITHM
 
 # Example
-bash run.sh data/2024-2018_3-SAT better_sat
+bash run.sh data/2018-2024_3-SAT better_sat
 ```
 
 ## Output
