@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 use tig_algorithms::knapsack::*;
-use tig_challenges::{knapsack::*, ChallengeTrait};
+use tig_challenges::knapsack::*;
 
 fn find_txt_files(dir_path: &str) -> Vec<PathBuf> {
     let mut txt_files = Vec::new();

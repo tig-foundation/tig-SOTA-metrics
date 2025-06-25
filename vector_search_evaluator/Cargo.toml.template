@@ -5,14 +5,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.81"
-tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "test/vector_search/${ALGORITHM}", features = [
-    "cuda",
-] }
-tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "test/vector_search/${ALGORITHM}", features = [
-    "cuda",
-] }
+tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vector_search/${ALGORITHM}", features = ["vector_search"] }
+tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vector_search/${ALGORITHM}", features = ["vector_search"] }
 cudarc = { version = "0.16.2", features = ["cuda-version-from-build-system"] }
 
 [build-dependencies]
-tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "test/vector_search/${ALGORITHM}" }
-tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "test/vector_search/${ALGORITHM}" }
+tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vector_search/${ALGORITHM}", features = ["vector_search"] }
+tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vector_search/${ALGORITHM}", features = ["vector_search"] }

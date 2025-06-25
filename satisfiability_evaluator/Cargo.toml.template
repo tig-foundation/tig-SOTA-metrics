@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "satisfiability/${ALGORITHM}" }
-tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "satisfiability/${ALGORITHM}" }
+tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "satisfiability/${ALGORITHM}", features = ["satisfiability"] }
+tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "satisfiability/${ALGORITHM}", features = ["satisfiability"] }

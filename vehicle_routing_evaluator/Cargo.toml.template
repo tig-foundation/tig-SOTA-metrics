@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vehicle_routing/${ALGORITHM}" }
-tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vehicle_routing/${ALGORITHM}" }
+tig-challenges = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vehicle_routing/${ALGORITHM}", features = ["vehicle_routing"] }
+tig-algorithms = { git = "https://github.com/tig-foundation/tig-monorepo.git", branch = "vehicle_routing/${ALGORITHM}", features = ["vehicle_routing"] }
 regex          = "1.9"

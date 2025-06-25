@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, time::Instant};
 use tig_algorithms::satisfiability::*;
-use tig_challenges::{satisfiability::*, ChallengeTrait};
+use tig_challenges::satisfiability::*;
 
 /// Find all `.cnf` files in the given directory.
 fn find_cnf_files(dir_path: &str) -> Vec<PathBuf> {
