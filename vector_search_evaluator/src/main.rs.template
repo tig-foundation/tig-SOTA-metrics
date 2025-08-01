@@ -134,7 +134,7 @@ fn main() -> Result<()> {
                     writeln!(
                         eval_file, "{:?},{},{},{},{}",
                         file_name, avg_dist, optimal_dist, elapsed_ms, "solution"
-                    )
+                    ).unwrap();
                 }
                 Err(err) => {
                     println!(
@@ -144,7 +144,7 @@ fn main() -> Result<()> {
                     writeln!(
                         eval_file, "{:?},{},{},{},{}",
                         file_name, 0.0, optimal_dist, elapsed_ms, format!("\"invalid_solution: {}\"", err)
-                    )
+                    ).unwrap();
                 }
             }
         } else {
@@ -152,8 +152,7 @@ fn main() -> Result<()> {
             writeln!(
                 eval_file, "{:?},{},{},{},{}",
                 file_name, 0.0, optimal_dist, elapsed_ms, "no_solution"
-            )
-        }
+            ).unwrap();
     }
 
     Ok(())
