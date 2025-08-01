@@ -124,7 +124,7 @@ fn main() {
                         file_name, v, elapsed_ms, "solution"
                     ).unwrap();
                 }
-                Err(_) => {
+                Err(err) => {
                     println!("instance: {:?}, knapsack_value: invalid solution", file_name);
                     writeln!(
                         eval_file, "{:?},{},{},{}",
