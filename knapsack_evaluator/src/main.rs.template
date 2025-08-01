@@ -1,6 +1,9 @@
-use std::{fs, path::PathBuf};
-use tig_algorithms::knapsack::*;
+use std::{fs, io::Write, path::PathBuf, time::Instant};
 use tig_challenges::knapsack::*;
+#[cfg(feature = "local")]
+mod ${ALGORITHM};
+#[cfg(not(feature = "local"))]
+use tig_algorithms::knapsack::*;
 
 fn find_txt_files(dir_path: &str) -> Vec<PathBuf> {
     let mut txt_files = Vec::new();
@@ -31,6 +34,22 @@ fn main() {
     }
 
     let dir_path = &args[1];
+
+    let dataset_name = std::path::Path::new(dir_path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let _ = std::fs::create_dir("evaluations");
+    let file_path = format!("evaluations/c003_{}_${ALGORITHM}.csv", dataset_name);
+    println!("Writing evaluation to: {:?}", file_path);
+    let mut eval_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&file_path)
+        .unwrap();
+    writeln!(eval_file, "instance_name,value,time_milliseconds,status").unwrap();
+
     for file_path in find_txt_files(dir_path) {
         let file_name = file_path.file_name().unwrap().to_string_lossy();
         let txt = std::fs::read_to_string(&file_path).unwrap();
@@ -85,7 +104,11 @@ fn main() {
             sub_instances: vec![instance],
         };
 
-        if let Ok(Some(solution)) = ${ALGORITHM}::solve_challenge(&challenge) {
+        // Solve and time
+        let start_time = Instant::now();
+        let result = ${ALGORITHM}::solve_challenge(&challenge);
+        let elapsed_us = start_time.elapsed().as_micros();
+        if let Ok(Some(solution)) = result {
             let instance = &challenge.sub_instances[0];
             let instance_solution = &solution.sub_solutions[0];
             match instance.verify_solution(&instance_solution) {
@@ -96,13 +119,25 @@ fn main() {
                         &instance.interaction_values,
                     );
                     println!("instance: {:?}, knapsack_value: {}", file_name, v);
+                    writeln!(
+                        eval_file, "{:?},{},{},{}",
+                        file_name, v, elapsed_ms, "solution"
+                    ).unwrap();
                 }
                 Err(_) => {
                     println!("instance: {:?}, knapsack_value: invalid solution", file_name);
+                    writeln!(
+                        eval_file, "{:?},{},{},{}",
+                        file_name, 0, elapsed_ms, format!("\"invalid_solution: {}\"", err)
+                    ).unwrap();
                 }
             }
         } else {
             println!("instance: {:?}, knapsack_value: no solution", file_name);
+            writeln!(
+                eval_file, "{:?},{},{},{}",
+                file_name, 0, elapsed_ms, "no_solution"
+            ).unwrap();
         }
     }
 }

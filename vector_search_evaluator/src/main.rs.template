@@ -1,8 +1,11 @@
 use anyhow::Result;
 use cudarc::{driver::CudaContext, nvrtc::Ptx, runtime::result::device::get_device_prop};
-use std::{fs, path::PathBuf, time::Instant};
-use tig_algorithms::vector_search::*;
+use std::{fs, io::Write, path::PathBuf, time::Instant};
 use tig_challenges::vector_search::*;
+#[cfg(feature = "local")]
+mod ${ALGORITHM};
+#[cfg(not(feature = "local"))]
+use tig_algorithms::vector_search::*;
 
 const PTX_CODE: &'static str = include_str!(concat!(env!("OUT_DIR"), "/algo.ptx"));
 
@@ -29,6 +32,21 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
     let dir_path = &args[1];
+
+    let dataset_name = std::path::Path::new(dir_path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let _ = std::fs::create_dir("evaluations");
+    let file_path = format!("evaluations/c004_{}_${ALGORITHM}.csv", dataset_name);
+    println!("Writing evaluation to: {:?}", file_path);
+    let mut eval_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&file_path)
+        .unwrap();
+    writeln!(eval_file, "instance_name,average_distance,optimal_distance,time_milliseconds,status").unwrap();
 
     let ptx = Ptx::from_src(PTX_CODE);
     for file_path in find_bin_files(dir_path) {
@@ -97,11 +115,9 @@ fn main() -> Result<()> {
             &prop,
         )?;
         let start_time = Instant::now();
-        if let Ok(Some(solution)) =
-            ${ALGORITHM}::solve_challenge(&challenge, module.clone(), stream.clone(), &prop)
-        {
-            let elapsed_ms = start_time.elapsed().as_millis();
-
+        let result = ${ALGORITHM}::solve_challenge(&challenge, module.clone(), stream.clone(), &prop);
+        let elapsed_ms = start_time.elapsed().as_millis();
+        if let Ok(Some(solution)) = result {
             match calc_average_distance(
                 challenge.difficulty.num_queries,
                 challenge.vector_dims,
@@ -118,16 +134,28 @@ fn main() -> Result<()> {
                         "instance: {:?}, avg_dist: {}, optimal_dist: {}, time: {:4} ms",
                         file_name, avg_dist, optimal_dist, elapsed_ms
                     );
+                    writeln!(
+                        eval_file, "{:?},{},{},{},{}",
+                        file_name, avg_dist, optimal_dist, elapsed_ms, "solution"
+                    ).unwrap();
                 }
                 Err(err) => {
                     println!(
                         "instance: {:?}, result: invalid solution — {}",
                         file_name, err
                     );
+                    writeln!(
+                        eval_file, "{:?},{},{},{},{}",
+                        file_name, 0.0, optimal_dist, elapsed_ms, format!("\"invalid_solution: {}\"", err)
+                    ).unwrap();
                 }
             }
         } else {
             println!("instance: {:?}, result: no solution", file_name);
+            writeln!(
+                eval_file, "{:?},{},{},{},{}",
+                file_name, 0.0, optimal_dist, elapsed_ms, "no_solution"
+            ).unwrap();
         }
     }
 

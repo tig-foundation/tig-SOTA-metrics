@@ -12,11 +12,16 @@ ALGORITHM=$2
 
 echo "Evaluating algorithm: $ALGORITHM"
 
-# Replace ${ALGORITHM} in Cargo.toml.template and save to Cargo.toml
-sed "s/\${ALGORITHM}/$ALGORITHM/g" Cargo.toml.template > Cargo.toml
-
-# Replace ${ALGORITHM} in src/main.rs.template and save to src/main.rs
-sed "s/\${ALGORITHM}/$ALGORITHM/g" src/main.rs.template > src/main.rs
-
-# Run the Rust program with the test instances folder as an argument
-cargo run --release -- "$TEST_INSTANCES_FOLDER"
+# Check if src/$ALGORITHM.rs exists
+if [ -f "src/$ALGORITHM.rs" ]; then
+    sed "s#\${BRANCH}#blank_slate#g" Cargo.toml.template > Cargo.toml
+    sed "s#\${ALGORITHM}#$ALGORITHM#g" src/main.rs.template > src/main.rs
+    echo "Using local algorithm in src/$ALGORITHM.rs"
+    ALGORITHM=$ALGORITHM cargo run --release --features local -- "$TEST_INSTANCES_FOLDER"
+else
+    sed "s#\${BRANCH}#knapsack/$ALGORITHM#g" Cargo.toml.template > Cargo.toml
+    sed "s#\${ALGORITHM}#$ALGORITHM#g" src/main.rs.template > src/main.rs
+    echo "Using algorithm from github:"
+    echo "https://github.com/tig-foundation/tig-monorepo/blob/knapsack/$ALGORITHM/tig-algorithms/src/knapsack/$ALGORITHM/benchmarker_outbound.cu" 
+    ALGORITHM=$ALGORITHM cargo run --release -- "$TEST_INSTANCES_FOLDER"
+fi

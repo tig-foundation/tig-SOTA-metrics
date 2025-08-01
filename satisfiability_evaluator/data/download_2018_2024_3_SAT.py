@@ -7,7 +7,7 @@ import lzma
 import requests
 import io
 
-os.makedirs("2018-2024_3-SAT", exist_ok=True)
+os.makedirs("2018_2024_3_SAT", exist_ok=True)
 BASE_URL = "http://benchmark-database.de/file/"
 
 for name in [
@@ -62,7 +62,7 @@ for name in [
     resp = requests.get(url)
     resp.raise_for_status()
     with lzma.open(io.BytesIO(resp.content), 'rb') as f:
-        with open(os.path.join("2018-2024_3-SAT", name + ".cnf"), 'wb') as out:
+        with open(os.path.join("2018_2024_3_SAT", name + ".cnf"), 'wb') as out:
             out.write(f.read())
 
 print("Done")

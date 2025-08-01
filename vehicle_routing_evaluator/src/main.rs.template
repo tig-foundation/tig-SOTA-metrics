@@ -1,10 +1,13 @@
-use std::{fs, path::PathBuf, time::Instant};
+use std::{fs, io::Write, path::PathBuf, time::Instant};
 use regex::Regex;
-use tig_algorithms::vehicle_routing::*;
 use tig_challenges::vehicle_routing::*;
+#[cfg(feature = "local")]
+mod ${ALGORITHM};
+#[cfg(not(feature = "local"))]
+use tig_algorithms::vehicle_routing::*;
 
 /// Scaling factor applied in the instance files (coordinates, times, distances)
-const SCALE: f64 = 10.0; // 2-decimal precision ⇔ divide by 100 for human output
+const SCALE: f64 = 10.0; // 1-decimal precision ⇔ divide by 10 for human output
 
 /// Find all `.txt` files in the given directory.
 fn find_txt_files(dir_path: &str) -> Vec<PathBuf> {
@@ -33,6 +36,21 @@ fn main() {
     // Regex for parsing .sol
     let route_re = Regex::new(r"(?i)^route\s+#").unwrap();
     let cost_re = Regex::new(r"(?i)cost\s+(\d+(?:\.\d+)?)").unwrap();
+
+    let dataset_name = std::path::Path::new(dir_path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let _ = std::fs::create_dir("evaluations");
+    let file_path = format!("evaluations/c002_{}_${ALGORITHM}.csv", dataset_name);
+    println!("Writing evaluation to: {:?}", file_path);
+    let mut eval_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&file_path)
+        .unwrap();
+    writeln!(eval_file, "instance_name,distance,baseline_distance,num_vehicles,baseline_num_vehicles,gap_percent,time_microseconds,status").unwrap();
 
     for txt_path in find_txt_files(dir_path) {
         // Strip ".txt" extension for instance name
@@ -110,8 +128,8 @@ fn main() {
             }
         }
         for ln in sol_lines.iter().rev() {
-            if let Some(cap) = cost_re.captures(ln) {
-                if let Ok(c) = cap[1].parse::<f64>() {
+            if let Some(bks) = cost_re.captures(ln) {
+                if let Ok(c) = bks[1].parse::<f64>() {
                     baseline = (c * SCALE).round() as i32;
                     break;
                 }
@@ -135,7 +153,7 @@ fn main() {
 
         let instance = SubInstance {
             seed: [0; 32],
-            difficulty: Difficulty { num_nodes: n, better_than_baseline: 0 },
+            difficulty: Difficulty { num_nodes: n, better_than_baseline: 60 },
             demands,
             distance_matrix,
             baseline_total_distance: baseline,
@@ -153,35 +171,46 @@ fn main() {
 
         // Solve and time
         let start_time = Instant::now();
-        if let Ok(Some(solution)) = ${ALGORITHM}::solve_challenge(&challenge) {
-            let elapsed_us = start_time.elapsed().as_micros();
+        let result = ${ALGORITHM}::solve_challenge(&challenge);
+        let elapsed_us = start_time.elapsed().as_micros();
+        if let Ok(Some(solution)) = result {
             let inst = &challenge.sub_instances[0];
             let sol = &solution.sub_solutions[0];
             match inst.verify_solution(sol) {
                 Ok(total_dist_scaled) => {
                     let dist = total_dist_scaled as f64 / SCALE;
-                    // Only print when strictly better than the baseline:
-                    if total_dist_scaled < inst.baseline_total_distance {
-                        let imprv_pct = 100.0 * (1.0 - total_dist_scaled as f64 / inst.baseline_total_distance as f64);
-                        println!(
-                            "instance: {}\tdistance: {:7.1}\tNV: {:2}\tBKS NV: {:2}\timprovement: {:4.1}%\ttime: {:4} µs",
-                            instance_name, dist, sol.routes.len(), baseline_fleet_size, imprv_pct, elapsed_us
-                        );
-                    } else {
-                        let gap = 100.0 * (total_dist_scaled as f64 / inst.baseline_total_distance as f64 - 1.0);
-                        println!(
-                            "instance: {}\tdistance: {:7.1}\tNV: {:2}\tBKS NV: {:2}\tgap: {:4.1}%\ttime: {:4} µs",
-                            instance_name,dist, sol.routes.len(), baseline_fleet_size, gap, elapsed_us
-                        );
-
-                    }
+                    let baseline_dist = inst.baseline_total_distance as f64 / SCALE;
+                    let gap = 100.0 * ((total_dist_scaled as f64 - inst.baseline_total_distance as f64) / (total_dist_scaled as f64));
+                    println!(
+                        "instance: {}\tdistance: {:7.1}\tbaseline: {:7.1}\tNV: {:2}\tBKS NV: {:2}\tgap: {:4.1}%\ttime: {:4} µs",
+                        instance_name, dist, baseline_dist, sol.routes.len(), baseline_fleet_size, gap, elapsed_us
+                    );
+                    writeln!(eval_file, "{},{:.1},{:.1},{},{},{},{},{}",
+                        instance_name,
+                        dist,
+                        baseline_dist,
+                        sol.routes.len(),
+                        baseline_fleet_size,
+                        gap,
+                        elapsed_us,
+                        "solution"
+                    ).unwrap();
                 }
-                Err(feas_err) => {
-                    // Optionally warn about infeasible solutions
+                Err(err) => {
                     eprintln!(
                         "instance: {} result: invalid solution {}",
-                        instance_name, feas_err
+                        instance_name, err
                     );
+                    writeln!(eval_file, "{},{:.1},{:.1},{},{},{},{},{}",
+                        instance_name,
+                        0.0,
+                        0.0,
+                        0,
+                        baseline_fleet_size,
+                        0.0,
+                        elapsed_us,
+                        format!("\"invalid_solution: {}\"", err)
+                    ).unwrap();
                 }
             }
         } else {
@@ -189,6 +218,18 @@ fn main() {
                 "instance: {}, result: no solution",
                 instance_name
             );
+            writeln!(eval_file, "{},{:.1},{:.1},{},{},{},{},{}",
+                instance_name,
+                0.0,
+                0.0,
+                0,
+                baseline_fleet_size,
+                0.0,
+                elapsed_us,
+                "no_solution"
+            ).unwrap();
         }
     }
+    
+    println!("Evaluation results written to: {:?}", file_path);
 }

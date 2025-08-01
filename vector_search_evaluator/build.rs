@@ -11,12 +11,19 @@ fn main() {
             tig_challenges::BUILD_TIME_PATH
         ))
         .expect("Failed to read cuda code for vector_search"),
-        fs::read_to_string(&format!(
-            "{}/src/vector_search/{}/benchmarker_outbound.cu",
-            tig_algorithms::BUILD_TIME_PATH,
-            algorithm
-        ))
-        .expect(&format!("Failed to read cuda code for {}", algorithm))
+        if env::var("CARGO_FEATURE_LOCAL").is_ok() {
+            fs::read_to_string(&format!("src/{}.cu", algorithm)).expect(&format!(
+                "Failed to read local cuda code: src/{}.cu",
+                algorithm
+            ))
+        } else {
+            fs::read_to_string(&format!(
+                "{}/src/vector_search/{}/benchmarker_outbound.cu",
+                tig_algorithms::BUILD_TIME_PATH,
+                algorithm
+            ))
+            .expect(&format!("Failed to read cuda code for {}", algorithm))
+        }
     );
 
     let cu_path = format!("{}/algo.cu", out_dir);

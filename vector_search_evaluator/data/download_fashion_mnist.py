@@ -6,7 +6,7 @@ import os
 import numpy as np
 import requests
 
-os.makedirs("Fashion-MNIST", exist_ok=True)
+os.makedirs("Fashion_MNIST", exist_ok=True)
 BASE_URL = "https://huggingface.co/datasets/open-vdb/fashion-mnist-784-euclidean/resolve/main"
 
 # download query vectors
@@ -36,7 +36,7 @@ df = pd.read_parquet(buffer, engine="pyarrow")
 # keep just the nearest neighbour
 nearest_neighbours = np.stack(df["neighbors_id"].values)[:, 0].astype(np.int32)
 
-with open("Fashion-MNIST/784-euclidean.bin", "wb") as f:
+with open("Fashion_MNIST/784-euclidean.bin", "wb") as f:
     f.write(vector_dims.to_bytes(length=4, byteorder="little", signed=False))
     f.write(database_size.to_bytes(length=4, byteorder="little", signed=False))
     f.write(num_queries.to_bytes(length=4, byteorder="little", signed=False))

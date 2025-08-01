@@ -1,50 +1,24 @@
-# TIG SOTA Metrics for Quadratic Knapsack Problem
+# Knapsack Evaluator
 
-This crate provides tools to evaluate TIG's knapsack algorithms against academic test instances for the Quadratic Knapsack Problem (QKP).
+The evaluator can be ran through `quick_start.ipynb` Jupyter notebook
 
-## Resources
+## Google Colab Quick Start
 
-- Test instances are sourced from: [benchmark-instances-for-qkp](https://github.com/phil85/benchmark-instances-for-qkp)
-- Optimal values for comparison can be found at: [results-for-qkp-benchmark-instances](https://github.com/phil85/results-for-qkp-benchmark-instances)
+Google Colab offers a quick way to run notebooks on Google Cloud: 
 
-## Supported Instance Collections
+<a href="https://colab.research.google.com/github/tig-foundation/tig-SOTA-metrics/blob/main/knapsack_evaluator/quick_start.ipynb" target="_blank">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
-Currently, the crate supports evaluation against the Standard-QKP collection. Future work includes adding support for additional academic instance collections such as:
-- Large-QKP
-- QKPGroupII
-- QKPGroupIII
-- And more
+## Running Locally
 
-## Getting Started
-
-### Downloading Test Instances
-
-To download the Standard-QKP dataset:
-
-```bash
-cd data
-python3 download_standard_qkp.py
-```
-
-### Evaluating Algorithms
-
-The evaluation script supports testing an algorithm against a collection of instances.
-
-```bash
-# Usage
-bash run.sh TEST_INSTANCES_FOLDER ALGORITHM
-
-# Example
-bash run.sh data/Standard-QKP new_quadkp_improved
-```
-
-## Output
-
-The evaluation outputs the knapsack value found by the algorithm for each test instance. Example output:
+If you want to run this notebook locally, we recommend using Jupyter lab:
 
 ```
-instance: "jeu_200_100_3.txt", knapsack_value: no solution
-instance: "jeu_200_100_4.txt", knapsack_value: 100838
-instance: "jeu_200_100_5.txt", knapsack_value: invalid solution
-instance: "jeu_200_100_6.txt", knapsack_value: 40090
+pip install jupyterlab
+git clone https://github.com/tig-foundation/tig-SOTA-metrics.git
+cd tig-SOTA-metrics/knapsack_evaluator
+jupyter lab
+
+# visit http://localhost:8888/ and open quick_start.ipynb
 ```

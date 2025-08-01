@@ -1,6 +1,9 @@
-use std::{fs, path::PathBuf, time::Instant};
-use tig_algorithms::satisfiability::*;
+use std::{fs, io::Write, path::PathBuf, time::Instant};
 use tig_challenges::satisfiability::*;
+#[cfg(feature = "local")]
+mod ${ALGORITHM};
+#[cfg(not(feature = "local"))]
+use tig_algorithms::satisfiability::*;
 
 /// Find all `.cnf` files in the given directory.
 fn find_cnf_files(dir_path: &str) -> Vec<PathBuf> {
@@ -25,6 +28,21 @@ fn main() {
         std::process::exit(1);
     }
     let dir_path = &args[1];
+
+    let dataset_name = std::path::Path::new(dir_path)
+        .file_name()
+        .unwrap()
+        .to_string_lossy()
+        .to_string();
+    let _ = std::fs::create_dir("evaluations");
+    let file_path = format!("evaluations/c001_{}_${ALGORITHM}.csv", dataset_name);
+    println!("Writing evaluation to: {:?}", file_path);
+    let mut eval_file = std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .open(&file_path)
+        .unwrap();
+    writeln!(eval_file, "instance_name,ime_milliseconds,status").unwrap();
 
     for file_path in find_cnf_files(dir_path) {
         let file_name = file_path.file_name().unwrap().to_string_lossy();
@@ -71,15 +89,19 @@ fn main() {
         };
 
         let start_time = Instant::now();
-        if let Ok(Some(solution)) = ${ALGORITHM}::solve_challenge(&challenge) {
-            let elapsed_ms = start_time.elapsed().as_millis();
-
+        let result = ${ALGORITHM}::solve_challenge(&challenge);
+        let elapsed_ms = start_time.elapsed().as_millis();
+        if let Ok(Some(solution)) = result {
             match challenge.verify_solution(&solution) {
                 Ok(_) => {
                     println!(
                         "instance: {:?}, result: sat, time: {:4} ms",
                         file_name, elapsed_ms
                     );
+                    writeln!(
+                        eval_file, "{:?},{},{}",
+                        file_name, elapsed_ms, "solution"
+                    ).unwrap();
                 }
                 Err(err) => {
                     // print the error message (wrong var-count or clause index)
@@ -87,10 +109,18 @@ fn main() {
                         "instance: {:?}, result: invalid solution — {}",
                         file_name, err
                     );
+                    writeln!(
+                        eval_file, "{:?},{},{}",
+                        file_name, elapsed_ms, format!("\"invalid_solution: {}\"", err)
+                    ).unwrap();
                 }
             }
         } else {
             println!("instance: {:?}, result: no solution", file_name);
+            writeln!(
+                eval_file, "{:?},{},{}",
+                file_name, elapsed_ms, "no_solution"
+            ).unwrap();
         }
     }
 }

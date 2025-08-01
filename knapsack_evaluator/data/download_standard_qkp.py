@@ -6,8 +6,8 @@
 import requests
 import os
 
-print('Downloading Standard-QKP instances...')
-os.makedirs('Standard-QKP', exist_ok=True)
+print('Downloading Standard_QKP instances...')
+os.makedirs('Standard_QKP', exist_ok=True)
 # %% Download standard QKP instances
 
 n_nodes_list = [100, 200, 300]
@@ -48,7 +48,7 @@ for n_nodes in n_nodes_list:
             edges = [edge for edge in edges if edge[2] != 0]
 
             # Write file
-            f = open('Standard-QKP/' + file_name, 'w')
+            f = open('Standard_QKP/' + file_name, 'w')
             f.write('{:d} {:d} {:s}\n'.format(n_nodes, len(edges), 'int'))
             for ind_i, ind_j, val in edges:
                 f.write('{:d} {:d} {:.6f}\n'.format(ind_i, ind_j, val))
