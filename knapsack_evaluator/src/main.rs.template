@@ -107,7 +107,7 @@ fn main() {
         // Solve and time
         let start_time = Instant::now();
         let result = ${ALGORITHM}::solve_challenge(&challenge);
-        let elapsed_us = start_time.elapsed().as_micros();
+        let elapsed_ms = start_time.elapsed().as_millis();
         if let Ok(Some(solution)) = result {
             let instance = &challenge.sub_instances[0];
             let instance_solution = &solution.sub_solutions[0];
