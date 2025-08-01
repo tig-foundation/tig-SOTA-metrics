@@ -8,8 +8,8 @@ import itertools
 import requests
 import os
 
-if not os.path.exists('GH'):
-    os.makedirs('GH')
+if not os.path.exists('HG'):
+    os.makedirs('HG')
 
 MAX_WORKERS = 8
 BASE_URL = "http://vrp.galgos.inf.puc-rio.br/media/com_vrp/instances/HG/"
@@ -37,7 +37,7 @@ for combo in itertools.product(
 ):
     name = f"{combo[0]}_{combo[1]}_{combo[2]}{combo[3]}"
     url = f"{BASE_URL}{name}"
-    save_path = os.path.join('GH', name)
+    save_path = os.path.join('HG', name)
     tasks.append((url, save_path))
 
 with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
