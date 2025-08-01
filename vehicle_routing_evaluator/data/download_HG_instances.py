@@ -1,11 +1,5 @@
 ###
-# Download Gehring and Homberger .txt files and matching .sol files
-### 
-
-
-###
-# Download standard QKP instances
-# Script adapted from https://github.com/phil85/benchmark-instances-for-qkp/blob/main/generate_instances_from_raw_data.py
+# Download Homberger and Gehring .txt files and matching .sol files
 ### 
 
 import itertools
@@ -14,8 +8,8 @@ import os
 
 BASE_URL = "http://vrp.galgos.inf.puc-rio.br/media/com_vrp/instances/HG/"
 
-print('Downloading GH instances...')
-os.makedirs('GH', exist_ok=True)
+print('Downloading HG instances...')
+os.makedirs('HG', exist_ok=True)
 
 for combo in itertools.product(
     ['C1', 'C2', 'R1', 'R2', 'RC1', 'RC2'],
