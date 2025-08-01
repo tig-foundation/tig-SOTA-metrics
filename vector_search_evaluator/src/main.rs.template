@@ -153,6 +153,7 @@ fn main() -> Result<()> {
                 eval_file, "{:?},{},{},{},{}",
                 file_name, 0.0, optimal_dist, elapsed_ms, "no_solution"
             ).unwrap();
+        }
     }
 
     Ok(())
