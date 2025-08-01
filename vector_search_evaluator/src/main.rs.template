@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cudarc::{driver::CudaContext, nvrtc::Ptx, runtime::result::device::get_device_prop};
-use std::{fs, path::PathBuf, time::Instant};
+use std::{fs, io::Write, path::PathBuf, time::Instant};
 use tig_algorithms::vector_search::*;
 use tig_challenges::vector_search::*;
 
@@ -112,11 +112,9 @@ fn main() -> Result<()> {
             &prop,
         )?;
         let start_time = Instant::now();
-        if let Ok(Some(solution)) =
-            ${ALGORITHM}::solve_challenge(&challenge, module.clone(), stream.clone(), &prop)
-        {
-            let elapsed_ms = start_time.elapsed().as_millis();
-
+        let result = ${ALGORITHM}::solve_challenge(&challenge, module.clone(), stream.clone(), &prop);
+        let elapsed_ms = start_time.elapsed().as_millis();
+        if let Ok(Some(solution)) = result {
             match calc_average_distance(
                 challenge.difficulty.num_queries,
                 challenge.vector_dims,
