@@ -18,5 +18,12 @@ sed "s/\${ALGORITHM}/$ALGORITHM/g" Cargo.toml.template > Cargo.toml
 # Replace ${ALGORITHM} in src/main.rs.template and save to src/main.rs
 sed "s/\${ALGORITHM}/$ALGORITHM/g" src/main.rs.template > src/main.rs
 
-# Run the Rust program with the test instances folder as an argument
-ALGORITHM=$ALGORITHM cargo run --release -- "$TEST_INSTANCES_FOLDER"
+# Check if src/$ALGORITHM.rs exists
+if [ -f "src/$ALGORITHM.rs" ]; then
+    echo "Using local algorithm in src/$ALGORITHM.rs"
+    cargo run --release --features local -- "$TEST_INSTANCES_FOLDER"
+else
+    echo "Using algorithm from github:"
+    echo "https://github.com/tig-foundation/tig-monorepo/blob/vector_search/$ALGORITHM/tig-algorithms/src/vector_search/$ALGORITHM/benchmarker_outbound.cu" 
+    cargo run --release -- "$TEST_INSTANCES_FOLDER"
+fi
