@@ -100,8 +100,8 @@ def process_dat_file(name):
             if val != 0:
                 edges.append((i, j, val))
 
-    budget = int(lines[2 + nn].strip())
-    weights = [int(v) for v in lines[3 + nn].split() if v]
+    budget = int(lines[3 + nn].strip())
+    weights = [int(v) for v in lines[4 + nn].split() if v]
 
     txt_name = f"{name}.txt"
     with open(os.path.join(OUT_DIR, txt_name), 'w') as out:
