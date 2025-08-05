@@ -48,7 +48,7 @@ fn main() {
         .create(true)
         .open(&file_path)
         .unwrap();
-    writeln!(eval_file, "instance_name,value,time_milliseconds,status").unwrap();
+    writeln!(eval_file, "instance,knapsack_value,baseline_value,gap_percent,time_milliseconds,status").unwrap();
 
     for file_path in find_txt_files(dir_path) {
         let file_name = file_path.file_name().unwrap().to_string_lossy();
@@ -63,6 +63,7 @@ fn main() {
             .map(|s| s.parse::<u32>().unwrap())
             .collect();
         let max_weight = lines[num_values + 2].parse::<u32>().unwrap();
+        let best_known_value = lines[num_values + 3].parse::<u32>().unwrap();
 
         let mut values = vec![0; num_items];
         let mut interaction_values = vec![vec![0; num_items]; num_items];
@@ -96,17 +97,22 @@ fn main() {
             values,
             interaction_values,
             max_weight,
-            baseline_value: 0,
+            baseline_value: best_known_value,
         };
-        let challenge = Challenge {
+        let mut challenge = Challenge {
             seed: instance.seed.clone(),
             difficulty: instance.difficulty.clone(),
             sub_instances: vec![instance],
         };
 
         // Solve and time
-        let start_time = Instant::now();
-        let result = ${ALGORITHM}::solve_challenge(&challenge);
+        let mut start_time = Instant::now();
+        let mut result = ${ALGORITHM}::solve_challenge(&challenge);
+        if !result.as_ref().is_ok_and(|x| x.is_some()) {
+            start_time = Instant::now();
+            challenge.sub_instances.get_mut(0).unwrap().baseline_value = (best_known_value as f32 * 0.995) as u32;
+            result = ${ALGORITHM}::solve_challenge(&challenge);
+        }
         let elapsed_ms = start_time.elapsed().as_millis();
         if let Ok(Some(solution)) = result {
             let instance = &challenge.sub_instances[0];
@@ -118,25 +124,27 @@ fn main() {
                         &instance.values,
                         &instance.interaction_values,
                     );
-                    println!("instance: {:?}, knapsack_value: {}", file_name, v);
+                    let gap = ((best_known_value as f32 / v as f32) - 1.0) * 100.0;
+                    println!("instance: {:?}\tknapsack_value: {:10.0}\tBKS: {:10.0}\tgap: {}%\ttime: {:4.3}ms", 
+                        file_name, v, best_known_value, gap, elapsed_ms);
                     writeln!(
-                        eval_file, "{:?},{},{},{}",
-                        file_name, v, elapsed_ms, "solution"
+                        eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                        file_name, v, best_known_value, gap, elapsed_ms, "solution"
                     ).unwrap();
                 }
                 Err(err) => {
                     println!("instance: {:?}, knapsack_value: invalid solution", file_name);
                     writeln!(
-                        eval_file, "{:?},{},{},{}",
-                        file_name, 0, elapsed_ms, format!("\"invalid_solution: {}\"", err)
+                        eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                        file_name, 0, best_known_value, 0.0, elapsed_ms, format!("\"invalid_solution: {}\"", err)
                     ).unwrap();
                 }
             }
         } else {
             println!("instance: {:?}, knapsack_value: no solution", file_name);
             writeln!(
-                eval_file, "{:?},{},{},{}",
-                file_name, 0, elapsed_ms, "no_solution"
+                eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                file_name, 0, best_known_value, 0.0, elapsed_ms, "no_solution"
             ).unwrap();
         }
     }
