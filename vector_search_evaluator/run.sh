@@ -22,6 +22,6 @@ else
     sed "s#\${BRANCH}#vector_search/$ALGORITHM#g" Cargo.toml.template > Cargo.toml
     sed "s#\${ALGORITHM}#$ALGORITHM#g" src/main.rs.template > src/main.rs
     echo "Using algorithm from github:"
-    echo "https://github.com/tig-foundation/tig-monorepo/blob/vector_search/$ALGORITHM/tig-algorithms/src/vector_search/$ALGORITHM/benchmarker_outbound.cu" 
+    echo "https://github.com/tig-foundation/tig-monorepo/blob/vector_search/$ALGORITHM/tig-algorithms/src/vector_search/$ALGORITHM/benchmarker_outbound.rs" 
     ALGORITHM=$ALGORITHM cargo run --release -- "$TEST_INSTANCES_FOLDER"
 fi
