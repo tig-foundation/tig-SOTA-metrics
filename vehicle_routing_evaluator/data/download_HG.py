@@ -25,13 +25,16 @@ def download_instance(download_url, save_path):
             print('Downloading ' + download_url)
             resp = requests.get(download_url)
             resp.raise_for_status()
-            with open(save_path, 'w') as f:
-                f.write(resp.text)
             break
         except Exception as e:
             print(f"Error downloading {download_url}: {e}")
             print(f"Retrying {download_url}: {i+1} of 3")
             time.sleep(i * 2)
+    else:
+        print(f"Failed to download {download_url} after 3 attempts.")
+        return
+    with open(save_path, 'w') as f:
+        f.write(resp.text)
 
 tasks = []
 for combo in itertools.product(
