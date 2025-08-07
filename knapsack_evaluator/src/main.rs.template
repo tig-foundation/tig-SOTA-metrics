@@ -1,4 +1,11 @@
-use std::{fs, io::Write, path::PathBuf, time::Instant};
+use rayon::prelude::*;
+use std::{
+    fs,
+    io::Write,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 use tig_challenges::knapsack::*;
 #[cfg(feature = "local")]
 mod ${ALGORITHM};
@@ -50,7 +57,9 @@ fn main() {
         .unwrap();
     writeln!(eval_file, "instance,knapsack_value,baseline_value,gap_percent,time_milliseconds,status").unwrap();
 
-    for file_path in find_txt_files(dir_path) {
+    let eval_file = Arc::new(Mutex::new(eval_file));
+
+    find_txt_files(dir_path).par_iter().for_each(|file_path| {
         let file_name = file_path.file_name().unwrap().to_string_lossy();
         let txt = std::fs::read_to_string(&file_path).unwrap();
         let lines: Vec<&str> = txt.split("\n").collect();
@@ -128,14 +137,14 @@ fn main() {
                     println!("instance: {:?}\tknapsack_value: {:10.0}\tBKS: {:10.0}\tgap: {}%\ttime: {:4.3}ms", 
                         file_name, v, best_known_value, gap, elapsed_ms);
                     writeln!(
-                        eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                        eval_file.lock().unwrap(), "{:?},{},{},{:.6},{:.6},{}",
                         file_name, v, best_known_value, gap, elapsed_ms, "solution"
                     ).unwrap();
                 }
                 Err(err) => {
                     println!("instance: {:?}, knapsack_value: invalid solution", file_name);
                     writeln!(
-                        eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                        eval_file.lock().unwrap(), "{:?},{},{},{:.6},{:.6},{}",
                         file_name, 0, best_known_value, 0.0, elapsed_ms, format!("\"invalid_solution: {}\"", err)
                     ).unwrap();
                 }
@@ -143,9 +152,9 @@ fn main() {
         } else {
             println!("instance: {:?}, knapsack_value: no solution", file_name);
             writeln!(
-                eval_file, "{:?},{},{},{:.6},{:.6},{}",
+                eval_file.lock().unwrap(), "{:?},{},{},{:.6},{:.6},{}",
                 file_name, 0, best_known_value, 0.0, elapsed_ms, "no_solution"
             ).unwrap();
         }
-    }
+    });
 }

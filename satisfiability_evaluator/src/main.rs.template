@@ -1,4 +1,11 @@
-use std::{fs, io::Write, path::PathBuf, time::Instant};
+use rayon::prelude::*;
+use std::{
+    fs,
+    io::Write,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 use tig_challenges::satisfiability::*;
 #[cfg(feature = "local")]
 mod ${ALGORITHM};
@@ -44,7 +51,9 @@ fn main() {
         .unwrap();
     writeln!(eval_file, "instance_name,ime_milliseconds,status").unwrap();
 
-    for file_path in find_cnf_files(dir_path) {
+    let eval_file = Arc::new(Mutex::new(eval_file));
+
+    find_txt_files(dir_path).par_iter().for_each(|file_path| {
         let file_name = file_path.file_name().unwrap().to_string_lossy();
         let txt = fs::read_to_string(&file_path).unwrap();
         let mut lines = txt.lines();
@@ -99,7 +108,7 @@ fn main() {
                         file_name, elapsed_ms
                     );
                     writeln!(
-                        eval_file, "{:?},{},{}",
+                        eval_file.lock().unwrap(), "{:?},{},{}",
                         file_name, elapsed_ms, "solution"
                     ).unwrap();
                 }
@@ -110,7 +119,7 @@ fn main() {
                         file_name, err
                     );
                     writeln!(
-                        eval_file, "{:?},{},{}",
+                        eval_file.lock().unwrap(), "{:?},{},{}",
                         file_name, elapsed_ms, format!("\"invalid_solution: {}\"", err)
                     ).unwrap();
                 }
@@ -118,9 +127,9 @@ fn main() {
         } else {
             println!("instance: {:?}, result: no solution", file_name);
             writeln!(
-                eval_file, "{:?},{},{}",
+                eval_file.lock().unwrap(), "{:?},{},{}",
                 file_name, elapsed_ms, "no_solution"
             ).unwrap();
         }
-    }
+    });
 }
