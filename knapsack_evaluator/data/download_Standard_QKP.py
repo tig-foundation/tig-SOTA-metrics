@@ -49,7 +49,7 @@ with pdfplumber.open(io.BytesIO(resp.content)) as pdf:
         assert tuple(table[0]) == (('γ', 'BestOFV') + SOTA_algos + SOTA_algos)
         assert tuple(row[0] for i, row in enumerate(table) if i != 2) == ('γ', '', '', 'Avg', 'Min', 'Max')
         row = table[2]
-        instance_data[f"standard_qkp_{nn}_{d}_{idx}.txt"] = {
+        instance_data[f"{nn}_{d}_{idx}.txt"] = {
             'ofv': int(float(row[1].replace(',', ''))),
             'gaps': {
                 algo: None if row[2 + j] == '—' else float(row[2 + j].replace(',', ''))
