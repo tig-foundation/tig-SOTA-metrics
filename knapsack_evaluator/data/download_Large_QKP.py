@@ -4,6 +4,7 @@ import pdfplumber
 import re
 import os
 import numpy as np
+import shutil
 
 # Configuration
 PDF_URL = "https://raw.githubusercontent.com/phil85/results-for-qkp-benchmark-instances/main/tables/Large-QKP_detailed_results.pdf"
@@ -83,30 +84,32 @@ for n_nodes, density in combos:
     # Randomly draw weights in [1, 50]
     weights = np.random.randint(1, 51, size=n_nodes)
 
-    dump = ""
     n_edges = len(edges)
-    dump += f'{n_nodes} {n_edges} float\n'
 
-    # Write edges
-    for (i, j) in edges:
-        dump += f'{i} {j} {edges[(i, j)]:.6f}\n'
-
-    # Write weights
-    for weight in weights:
-        dump += f'{weight} '
-    dump += '\n'
+    # # Write edges
+    temp_file = os.path.join(OUTPUT_DIR, f'{n_nodes}_{density}.txt')
+    with open(temp_file, 'w') as f:
+        f.write(f'{n_nodes} {n_edges} int\n')
+        for (i, j) in edges:
+            f.write(f'{i} {j} {edges[(i, j)]}\n')
+        # Write weights
+        for weight in weights:
+            f.write(f'{weight} ')
+        f.write('\n')
 
     # Add budgets
     for b in budgets:
         b = int(float(b) * 10)
         instance = f'{n_nodes}_{density}_{b}.txt'
+        shutil.copyfile(
+            temp_file,
+            os.path.join(OUTPUT_DIR, instance)
+        )
         print(f"Writing instance {instance} ...")
-        with open(os.path.join(OUTPUT_DIR, instance), 'w') as f:
-            f.write(
-                dump + 
-                f'{int(b / 1000.0 * np.sum(weights))}\n' +
-                f'{instance_data[instance]['ofv']}\n'
-            )
+        with open(os.path.join(OUTPUT_DIR, instance), 'a') as f:
+            f.write(f'{int(b / 1000.0 * np.sum(weights))}\n')
+            f.write(f'{instance_data[instance]['ofv']}\n')
+    os.remove(temp_file)
 
 print("Writing SOTA results ...")
 with open(os.path.join(OUTPUT_DIR, 'sota.csv'), 'w') as f:
