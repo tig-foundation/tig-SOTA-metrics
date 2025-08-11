@@ -17,13 +17,13 @@ if not os.path.exists('HG'):
 
 # Download Dataset
 MAX_WORKERS = 8
-BASE_URL = "http://vrp.galgos.inf.puc-rio.br/media/com_vrp/instances/HG/"
+BASE_URL = "https://vrp.galgos.inf.puc-rio.br/media/com_vrp/instances/HG/"
 
 def download_instance(download_url, save_path):
     for i in range(3):
         try:
             print('Downloading ' + download_url)
-            resp = requests.get(download_url)
+            resp = requests.get(download_url, verify=False)
             resp.raise_for_status()
             break
         except Exception as e:
