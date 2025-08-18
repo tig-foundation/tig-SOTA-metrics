@@ -1,9 +1,6 @@
-use rayon::prelude::*;
 use std::{
     fs,
-    io::Write,
     path::PathBuf,
-    sync::{Arc, Mutex},
     time::Instant,
 };
 use regex::Regex;
@@ -16,232 +13,167 @@ use tig_algorithms::vehicle_routing::*;
 /// Scaling factor applied in the instance files (coordinates, times, distances)
 const SCALE: f64 = 10.0; // 1-decimal precision ⇔ divide by 10 for human output
 
-/// Find all `.txt` files in the given directory.
-fn find_txt_files(dir_path: &str) -> Vec<PathBuf> {
-    let mut txt_files = Vec::new();
-    for entry in fs::read_dir(dir_path).unwrap() {
-        let path = entry.unwrap().path();
-        if !path.is_dir() {
-            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if ext.eq_ignore_ascii_case("txt") {
-                    txt_files.push(path);
-                }
-            }
-        }
-    }
-    txt_files
-}
-
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 2 {
-        eprintln!("Usage: {} <directory_path>", args[0]);
+        eprintln!("Usage: {} <file_path>", args[0]);
         std::process::exit(1);
     }
-    let dir_path = &args[1];
+    let file_path = PathBuf::from(&args[1]);
+    let instance_name = file_path.file_stem().unwrap().to_string_lossy();
+    let instance_path = file_path.with_file_name(format!("{}.txt", instance_name));
+    let sol_path = file_path.with_file_name(format!("{}.sol", instance_name));
+    if !instance_path.exists() {
+        panic!("Instance path does not exist: {}", instance_path.display());
+    }
+    if !sol_path.exists() {
+        panic!("Solution path does not exist: {}", sol_path.display());
+    }
 
     // Regex for parsing .sol
     let route_re = Regex::new(r"(?i)^route\s+#").unwrap();
     let cost_re = Regex::new(r"(?i)cost\s+(\d+(?:\.\d+)?)").unwrap();
 
-    let dataset_name = std::path::Path::new(dir_path)
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
-    let _ = std::fs::create_dir("evaluations");
-    let file_path = format!("evaluations/c002_{}_${ALGORITHM}.csv", dataset_name);
-    println!("Writing evaluation to: {:?}", file_path);
-    let mut eval_file = std::fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&file_path)
-        .unwrap();
-    writeln!(eval_file, "instance_name,distance,baseline_distance,num_vehicles,baseline_num_vehicles,gap_percent,time_microseconds,status").unwrap();
+    // read instance
+    let txt = fs::read_to_string(&instance_path).unwrap();
+    let lines: Vec<&str> = txt.lines().collect();
 
-    let eval_file = Arc::new(Mutex::new(eval_file));
-
-    find_txt_files(dir_path).par_iter().for_each(|file_path| {
-        // Strip ".txt" extension for instance name
-        let base = file_path.file_stem().unwrap().to_string_lossy();
-        let instance_name = base.as_ref();
-
-        let txt = fs::read_to_string(&file_path).unwrap();
-        let lines: Vec<&str> = txt.lines().collect();
-
-        // Parse .txt: capacity and customers
-        let mut max_capacity: Option<i32> = None;
-        let mut fleet_size: Option<usize> = None;
-        let mut customers = Vec::new();
-        let mut in_vehicle = false;
-        let mut in_customers = false;
-        for &ln in &lines {
-            if ln.contains("VEHICLE") {
-                in_vehicle = true;
-                continue;
-            }
-            if in_vehicle && ln.contains("CAPACITY") {
-                continue;
-            }
-            if in_vehicle && !ln.trim().is_empty() {
-                let parts: Vec<&str> = ln.split_whitespace().collect();
-                if parts.len() >= 2 && max_capacity.is_none() {
-                    if let Ok(cap) = parts[1].parse::<i32>() {
-                        max_capacity = Some(cap);
-                    }
+    // Parse .txt: capacity and customers
+    let mut max_capacity: Option<i32> = None;
+    let mut fleet_size: Option<usize> = None;
+    let mut customers = Vec::new();
+    let mut in_vehicle = false;
+    let mut in_customers = false;
+    for &ln in &lines {
+        if ln.contains("VEHICLE") {
+            in_vehicle = true;
+            continue;
+        }
+        if in_vehicle && ln.contains("CAPACITY") {
+            continue;
+        }
+        if in_vehicle && !ln.trim().is_empty() {
+            let parts: Vec<&str> = ln.split_whitespace().collect();
+            if parts.len() >= 2 && max_capacity.is_none() {
+                if let Ok(cap) = parts[1].parse::<i32>() {
+                    max_capacity = Some(cap);
                 }
-                if parts.len() >= 2 && fleet_size.is_none() {
-                    if let Ok(fleet) = parts[0].parse::<usize>() {
-                        fleet_size = Some(fleet);
-                    }
+            }
+            if parts.len() >= 2 && fleet_size.is_none() {
+                if let Ok(fleet) = parts[0].parse::<usize>() {
+                    fleet_size = Some(fleet);
                 }
-                in_vehicle = false;
-                continue;
             }
-            if ln.contains("CUST NO.") {
-                in_customers = true;
-                continue;
-            }
-            if in_customers && !ln.trim().is_empty() {
-                let parts: Vec<&str> = ln.split_whitespace().collect();
-                if parts.len() == 7 {
-                    if let (Ok(cid), Ok(x), Ok(y), Ok(d), Ok(r), Ok(dd), Ok(sv)) = (
-                        parts[0].parse::<i32>(),
-                        parts[1].parse::<f64>().map(|v| (v * SCALE).round() as i32),
-                        parts[2].parse::<f64>().map(|v| (v * SCALE).round() as i32),
-                        parts[3].parse::<i32>(),
-                        parts[4].parse::<f64>().map(|v| (v * SCALE).round() as i32),
-                        parts[5].parse::<f64>().map(|v| (v * SCALE).round() as i32),
-                        parts[6].parse::<f64>().map(|v| (v * SCALE).round() as i32),
-                    ) {
-                        customers.push((cid, x, y, d, r, dd, sv));
-                    }
+            in_vehicle = false;
+            continue;
+        }
+        if ln.contains("CUST NO.") {
+            in_customers = true;
+            continue;
+        }
+        if in_customers && !ln.trim().is_empty() {
+            let parts: Vec<&str> = ln.split_whitespace().collect();
+            if parts.len() == 7 {
+                if let (Ok(cid), Ok(x), Ok(y), Ok(d), Ok(r), Ok(dd), Ok(sv)) = (
+                    parts[0].parse::<i32>(),
+                    parts[1].parse::<f64>().map(|v| (v * SCALE).round() as i32),
+                    parts[2].parse::<f64>().map(|v| (v * SCALE).round() as i32),
+                    parts[3].parse::<i32>(),
+                    parts[4].parse::<f64>().map(|v| (v * SCALE).round() as i32),
+                    parts[5].parse::<f64>().map(|v| (v * SCALE).round() as i32),
+                    parts[6].parse::<f64>().map(|v| (v * SCALE).round() as i32),
+                ) {
+                    customers.push((cid, x, y, d, r, dd, sv));
                 }
             }
         }
-        let max_capacity = max_capacity.expect("Capacity not found in .txt file");
-        let fleet_size = fleet_size.expect("Vehicle number not found in .txt file");
+    }
+    let max_capacity = max_capacity.expect("Capacity not found in .txt file");
+    let fleet_size = fleet_size.expect("Vehicle number not found in .txt file");
 
-        // Read and parse .sol
-        let sol_path = file_path.with_file_name(format!("{}.sol", base));
-        let sol_lines: Vec<String> = fs::read_to_string(&sol_path)
-            .unwrap_or_default()
-            .lines()
-            .map(|s| s.to_string())
-            .collect();
-        let mut baseline_fleet_size = 0;
-        let mut baseline: i32 = 0;
-        for ln in &sol_lines {
-            if route_re.is_match(ln) {
-                baseline_fleet_size += 1;
+    // Read and parse .sol
+    let sol_lines: Vec<String> = fs::read_to_string(&sol_path)
+        .unwrap_or_default()
+        .lines()
+        .map(|s| s.to_string())
+        .collect();
+    let mut baseline_fleet_size = 0;
+    let mut baseline: i32 = 0;
+    for ln in &sol_lines {
+        if route_re.is_match(ln) {
+            baseline_fleet_size += 1;
+        }
+    }
+    for ln in sol_lines.iter().rev() {
+        if let Some(bks) = cost_re.captures(ln) {
+            if let Ok(c) = bks[1].parse::<f64>() {
+                baseline = (c * SCALE).round() as i32;
+                break;
             }
         }
-        for ln in sol_lines.iter().rev() {
-            if let Some(bks) = cost_re.captures(ln) {
-                if let Ok(c) = bks[1].parse::<f64>() {
-                    baseline = (c * SCALE).round() as i32;
-                    break;
-                }
+    }
+
+    // Build challenge
+    let demands: Vec<i32> = customers.iter().map(|c| c.3).collect();
+    let ready_times: Vec<i32> = customers.iter().map(|c| c.4).collect();
+    let due_times: Vec<i32> = customers.iter().map(|c| c.5).collect();
+    let service_time: i32 = customers.iter().find(|c| c.0 != 0).map(|c| c.6).unwrap_or(0);        
+    let n = customers.len();
+    let mut distance_matrix: Vec<Vec<i32>> = vec![vec![0; n]; n];
+    for i in 0..n {
+        for j in 0..n {
+            let dx = customers[i].1 as f64 - customers[j].1 as f64;
+            let dy = customers[i].2 as f64 - customers[j].2 as f64;
+            distance_matrix[i][j] = (dx.hypot(dy)).round() as i32;
+        }
+    }
+
+    let instance = SubInstance {
+        seed: [0; 32],
+        difficulty: Difficulty { num_nodes: n, better_than_baseline: 60 },
+        demands,
+        distance_matrix,
+        baseline_total_distance: baseline,
+        max_capacity,
+        fleet_size,
+        service_time,
+        ready_times,
+        due_times,
+    };
+    let challenge = Challenge {
+        seed: instance.seed,
+        difficulty: instance.difficulty,
+        sub_instances: vec![instance],
+    };
+
+    // Solve and time
+    let start_time = Instant::now();
+    let result = ${ALGORITHM}::solve_challenge(&challenge);
+    let elapsed_ms = start_time.elapsed().as_millis();
+    if let Ok(Some(solution)) = result {
+        let inst = &challenge.sub_instances[0];
+        let sol = &solution.sub_solutions[0];
+        match inst.verify_solution(sol) {
+            Ok(total_dist_scaled) => {
+                let dist = total_dist_scaled as f64 / SCALE;
+                let baseline_dist = inst.baseline_total_distance as f64 / SCALE;
+                let gap = 100.0 * ((total_dist_scaled as f64 - inst.baseline_total_distance as f64) / (total_dist_scaled as f64));
+                println!(
+                    "{},{},{:.1},{:.1},{},{},{}",
+                    "solution",
+                    elapsed_ms,
+                    dist,
+                    baseline_dist,
+                    sol.routes.len(),
+                    baseline_fleet_size,
+                    gap,
+                );
+            }
+            Err(_) => {
+                println!("{},{}", "invalid_solution", elapsed_ms,);
             }
         }
-
-        // Build challenge
-        let demands: Vec<i32> = customers.iter().map(|c| c.3).collect();
-        let ready_times: Vec<i32> = customers.iter().map(|c| c.4).collect();
-        let due_times: Vec<i32> = customers.iter().map(|c| c.5).collect();
-        let service_time: i32 = customers.iter().find(|c| c.0 != 0).map(|c| c.6).unwrap_or(0);        
-        let n = customers.len();
-        let mut distance_matrix: Vec<Vec<i32>> = vec![vec![0; n]; n];
-        for i in 0..n {
-            for j in 0..n {
-                let dx = customers[i].1 as f64 - customers[j].1 as f64;
-                let dy = customers[i].2 as f64 - customers[j].2 as f64;
-                distance_matrix[i][j] = (dx.hypot(dy)).round() as i32;
-            }
-        }
-
-        let instance = SubInstance {
-            seed: [0; 32],
-            difficulty: Difficulty { num_nodes: n, better_than_baseline: 60 },
-            demands,
-            distance_matrix,
-            baseline_total_distance: baseline,
-            max_capacity,
-            fleet_size,
-            service_time,
-            ready_times,
-            due_times,
-        };
-        let challenge = Challenge {
-            seed: instance.seed,
-            difficulty: instance.difficulty,
-            sub_instances: vec![instance],
-        };
-
-        // Solve and time
-        let start_time = Instant::now();
-        let result = ${ALGORITHM}::solve_challenge(&challenge);
-        let elapsed_us = start_time.elapsed().as_micros();
-        if let Ok(Some(solution)) = result {
-            let inst = &challenge.sub_instances[0];
-            let sol = &solution.sub_solutions[0];
-            match inst.verify_solution(sol) {
-                Ok(total_dist_scaled) => {
-                    let dist = total_dist_scaled as f64 / SCALE;
-                    let baseline_dist = inst.baseline_total_distance as f64 / SCALE;
-                    let gap = 100.0 * ((total_dist_scaled as f64 - inst.baseline_total_distance as f64) / (total_dist_scaled as f64));
-                    println!(
-                        "instance: {}\tdistance: {:7.1}\tbaseline: {:7.1}\tNV: {:2}\tBKS NV: {:2}\tgap: {:4.1}%\ttime: {:4} µs",
-                        instance_name, dist, baseline_dist, sol.routes.len(), baseline_fleet_size, gap, elapsed_us
-                    );
-                    writeln!(
-                        eval_file.lock().unwrap(), "{},{:.1},{:.1},{},{},{},{},{}",
-                        instance_name,
-                        dist,
-                        baseline_dist,
-                        sol.routes.len(),
-                        baseline_fleet_size,
-                        gap,
-                        elapsed_us,
-                        "solution"
-                    ).unwrap();
-                }
-                Err(err) => {
-                    eprintln!(
-                        "instance: {} result: invalid solution {}",
-                        instance_name, err
-                    );
-                    writeln!(
-                        eval_file.lock().unwrap(), "{},{:.1},{:.1},{},{},{},{},{}",
-                        instance_name,
-                        0.0,
-                        0.0,
-                        0,
-                        baseline_fleet_size,
-                        0.0,
-                        elapsed_us,
-                        format!("\"invalid_solution: {}\"", err)
-                    ).unwrap();
-                }
-            }
-        } else {
-            println!(
-                "instance: {}, result: no solution",
-                instance_name
-            );
-            writeln!(
-                eval_file.lock().unwrap(), "{},{:.1},{:.1},{},{},{},{},{}",
-                instance_name,
-                0.0,
-                0.0,
-                0,
-                baseline_fleet_size,
-                0.0,
-                elapsed_us,
-                "no_solution"
-            ).unwrap();
-        }
-    });
-    
-    println!("Evaluation results written to: {:?}", file_path);
+    } else {
+        println!("{},{}", "no_solution", elapsed_ms,);
+    }
 }
